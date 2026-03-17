@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>예산 관리 — 가계부</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f7f7f5; --surface: #ffffff; --border: #e8e8e5;
+      --text: #1a1a1a; --text-muted: #9a9a95;
+      --income: #2d7a4f; --income-bg: #edf7f1;
+      --expense: #c0392b; --expense-bg: #fdf0ef;
+      --warn: #d68910; --warn-bg: #fef9ec;
+      --accent: #3d5afe; --accent-light: #eef0ff;
+      --carryover: #7b3fe4; --carryover-bg: #f3eeff;
+      --radius: 12px; --shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; font-size: 14px; }
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 28px 20px; display: flex; flex-direction: column; gap: 32px; position: fixed; top: 0; left: 0; height: 100vh; }
+    .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; } .logo span { color: var(--accent); }
+    nav { display: flex; flex-direction: column; gap: 4px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: 8px; cursor: pointer; color: var(--text-muted); font-weight: 500; transition: all .15s; text-decoration: none; }
+    .nav-item:hover { background: var(--bg); color: var(--text); } .nav-item.active { background: var(--accent-light); color: var(--accent); }
+    .nav-icon { font-size: 16px; width: 20px; text-align: center; }
+    .sidebar-footer { margin-top: auto; font-size: 12px; color: var(--text-muted); }
+    .main { margin-left: 220px; flex: 1; padding: 36px 40px; max-width: calc(100vw - 220px); }
+    .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+    .page-title { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+    .page-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+    .month-nav { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 7px 14px; }
+    .month-btn { background: none; border: none; cursor: pointer; color: var(--text-muted); font-size: 15px; padding: 1px 3px; border-radius: 4px; }
+    .month-btn:hover { background: var(--bg); }
+    .month-label { font-weight: 600; font-size: 13px; min-width: 76px; text-align: center; }
+    .budget-hero { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 28px 32px; box-shadow: var(--shadow); margin-bottom: 16px; }
+    .hero-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 24px; gap: 24px; }
+    .hero-left { flex: 1; }
+    .hero-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
+    .budget-formula { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+    .formula-base { display: flex; align-items: baseline; gap: 4px; }
+    .formula-amount { font-size: 32px; font-weight: 700; letter-spacing: -1px; cursor: pointer; border-bottom: 2px dashed var(--border); padding-bottom: 1px; transition: border-color .15s; line-height: 1.1; }
+    .formula-amount:hover { border-color: var(--accent); }
+    .formula-unit { font-size: 14px; color: var(--text-muted); font-weight: 500; }
+    .formula-plus { font-size: 18px; color: var(--text-muted); font-weight: 300; }
+    .formula-carryover { display: flex; align-items: baseline; gap: 4px; background: var(--carryover-bg); border: 1px solid rgba(123,63,228,.2); border-radius: 8px; padding: 4px 10px; cursor: pointer; transition: all .15s; }
+    .formula-carryover:hover { border-color: var(--carryover); }
+    .formula-carryover-amount { font-size: 18px; font-weight: 700; color: var(--carryover); letter-spacing: -0.5px; }
+    .formula-carryover-label { font-size: 11px; color: var(--carryover); font-weight: 600; }
+    .formula-eq { font-size: 18px; color: var(--text-muted); font-weight: 300; }
+    .formula-total { display: flex; align-items: baseline; gap: 4px; }
+    .formula-total-amount { font-size: 22px; font-weight: 700; color: var(--text); letter-spacing: -0.5px; }
+    .inline-edit { display: none; align-items: center; gap: 8px; margin-top: 6px; }
+    .inline-edit.visible { display: flex; }
+    .inline-input { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; border: none; border-bottom: 2px solid var(--accent); outline: none; background: transparent; width: 180px; font-family: inherit; color: var(--text); }
+    .btn-save { padding: 6px 14px; background: var(--accent); color: #fff; border: none; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; font-family: inherit; }
+    .btn-cancel { padding: 6px 10px; background: none; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; cursor: pointer; font-family: inherit; }
+    .hero-hint { font-size: 11px; color: var(--text-muted); margin-top: 6px; display: flex; align-items: center; gap: 10px; }
+    .carryover-toggle { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; color: var(--carryover); font-size: 11px; font-weight: 500; }
+    .toggle-switch { width: 28px; height: 16px; background: var(--border); border-radius: 99px; position: relative; transition: background .2s; flex-shrink: 0; }
+    .toggle-switch::after { content: ''; position: absolute; width: 12px; height: 12px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: left .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
+    .toggle-switch.on { background: var(--carryover); }
+    .toggle-switch.on::after { left: 14px; }
+    .hero-right { display: flex; gap: 28px; flex-shrink: 0; }
+    .hero-stat { text-align: right; }
+    .hero-stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+    .hero-stat-value { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+    .progress-wrap { position: relative; }
+    .progress-track { height: 12px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 10px; position: relative; }
+    .progress-carryover-bg { position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px; opacity: .25; background: var(--carryover); transition: width .5s cubic-bezier(.4,0,.2,1); }
+    .progress-bar { position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px; transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; }
+    .progress-bar.safe { background: var(--income); } .progress-bar.warn { background: var(--warn); } .progress-bar.over { background: var(--expense); }
+    .progress-divider { position: absolute; top: -2px; bottom: -2px; width: 2px; background: rgba(123,63,228,.5); border-radius: 1px; transition: left .3s; }
+    .progress-divider::after { content: '기본'; position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--carryover); font-weight: 600; white-space: nowrap; }
+    .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+    .progress-pct { font-weight: 700; font-size: 13px; }
+    .progress-pct.safe { color: var(--income); } .progress-pct.warn { color: var(--warn); } .progress-pct.over { color: var(--expense); }
+    .status-msg { margin-top: 14px; padding: 11px 15px; border-radius: 8px; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+    .status-msg.safe { background: var(--income-bg); color: var(--income); }
+    .status-msg.warn { background: var(--warn-bg); color: var(--warn); }
+    .status-msg.over { background: var(--expense-bg); color: var(--expense); }
+    .status-msg.no-budget { background: var(--bg); color: var(--text-muted); border: 1px solid var(--border); }
+    .carryover-card { background: var(--carryover-bg); border: 1px solid rgba(123,63,228,.2); border-radius: var(--radius); padding: 18px 22px; margin-bottom: 16px; display: none; }
+    .carryover-card.visible { display: block; }
+    .carryover-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .carryover-card-title { font-size: 14px; font-weight: 600; color: var(--carryover); display: flex; align-items: center; gap: 6px; }
+    .carryover-total { font-size: 13px; font-weight: 700; color: var(--carryover); }
+    .carryover-history { display: flex; gap: 0; }
+    .co-month { flex: 1; padding: 10px 14px; border-right: 1px solid rgba(123,63,228,.15); position: relative; }
+    .co-month:last-child { border-right: none; }
+    .co-month-label { font-size: 11px; color: var(--carryover); font-weight: 600; margin-bottom: 4px; opacity: .7; }
+    .co-month-budget { font-size: 11px; color: var(--text-muted); margin-bottom: 2px; }
+    .co-month-spent { font-size: 11px; color: var(--text-muted); margin-bottom: 6px; }
+    .co-month-remain { font-size: 14px; font-weight: 700; color: var(--carryover); }
+    .co-month-remain.deficit { color: var(--expense); }
+    .co-bar-wrap { height: 4px; background: rgba(123,63,228,.15); border-radius: 99px; overflow: hidden; margin-top: 6px; }
+    .co-bar { height: 100%; background: var(--carryover); border-radius: 99px; }
+    .co-arrow { position: absolute; right: -10px; top: 50%; transform: translateY(-50%); font-size: 14px; color: var(--carryover); opacity: .5; z-index: 1; }
+    .co-current { background: rgba(123,63,228,.06); border-radius: 8px; }
+    .guide-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+    .guide-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px; box-shadow: var(--shadow); }
+    .guide-card-label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+    .guide-card-value { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+    .guide-card-sub { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
+    .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 26px; box-shadow: var(--shadow); margin-bottom: 16px; }
+    .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 15px; font-weight: 600; }
+    .calendar-strip { display: flex; gap: 4px; flex-wrap: wrap; }
+    .day-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; width: 36px; }
+    .day-num { font-size: 10px; color: var(--text-muted); }
+    .day-bar-col { width: 28px; height: 40px; display: flex; align-items: flex-end; }
+    .day-bar { width: 100%; border-radius: 3px 3px 0 0; min-height: 2px; }
+    .day-today .day-num { color: var(--accent); font-weight: 700; }
+    .cat-list { display: flex; flex-direction: column; gap: 12px; }
+    .cat-row { display: flex; align-items: center; gap: 12px; }
+    .cat-icon { font-size: 16px; width: 24px; text-align: center; }
+    .cat-name { font-size: 13px; font-weight: 500; min-width: 48px; }
+    .cat-bar-wrap { flex: 1; height: 7px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .cat-bar { height: 100%; border-radius: 99px; }
+    .cat-amount { font-size: 12px; font-weight: 600; color: var(--text); min-width: 80px; text-align: right; }
+    .cat-pct { font-size: 11px; color: var(--text-muted); min-width: 36px; text-align: right; }
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transition: all .25s; pointer-events: none; z-index: 200; white-space: nowrap; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="logo">mon<span>.</span>ey</div>
+    <nav>
+      <a class="nav-item" href="index.html"><span class="nav-icon">&#9689;</span> 대시보드</a>
+      <a class="nav-item" href="transactions.html"><span class="nav-icon">&#8644;</span> 거래 내역</a>
+      <a class="nav-item active" href="budget.html"><span class="nav-icon">&#9685;</span> 예산 관리</a>
+      <a class="nav-item" href="stats.html"><span class="nav-icon">&#9783;</span> 통계</a>
+      <a class="nav-item" href="settings.html"><span class="nav-icon">&#9881;</span> 설정</a>
+    </nav>
+    <div class="sidebar-footer">v1.0 &nbsp;·&nbsp; 가계부</div>
+  </aside>
+
+  <main class="main">
+    <div class="page-header">
+      <div>
+        <div class="page-title">예산 관리</div>
+        <div class="page-subtitle" id="headerSub"></div>
+      </div>
+      <div class="month-nav">
+        <button class="month-btn" onclick="changeMonth(-1)">&#8249;</button>
+        <span class="month-label" id="monthLabel"></span>
+        <button class="month-btn" onclick="changeMonth(1)">&#8250;</button>
+      </div>
+    </div>
+
+    <div class="budget-hero">
+      <div class="hero-top">
+        <div class="hero-left">
+          <div class="hero-label">이번 달 사용 가능 금액</div>
+          <div id="displayMode">
+            <div class="budget-formula">
+              <div class="formula-base">
+                <span class="formula-amount" id="formulaBase" onclick="startEdit()" title="클릭해서 수정">0</span>
+                <span class="formula-unit">원</span>
+              </div>
+              <span class="formula-plus" id="formulaPlus">+</span>
+              <div class="formula-carryover" id="formulaCarryover" onclick="toggleCarryoverCard()">
+                <span class="formula-carryover-amount" id="formulaCarryoverAmt">+0</span>
+                <span class="formula-carryover-label">원 이월</span>
+              </div>
+              <span class="formula-eq" id="formulaEq">=</span>
+              <div class="formula-total" id="formulaTotal">
+                <span class="formula-total-amount" id="formulaTotalAmt">0</span>
+                <span class="formula-unit">원</span>
+              </div>
+            </div>
+            <div class="hero-hint">
+              <span>기본 예산 클릭해서 수정</span>
+              <label class="carryover-toggle" onclick="toggleCarryover()">
+                <div class="toggle-switch" id="carryoverToggle"></div>
+                <span id="carryoverLabel">이월 미적용</span>
+              </label>
+            </div>
+          </div>
+          <div class="inline-edit" id="editMode">
+            <input class="inline-input" type="number" id="heroInput" placeholder="0"
+              onkeydown="if(event.key==='Enter')saveEdit();if(event.key==='Escape')cancelEdit();" />
+            <span class="formula-unit">원</span>
+            <button class="btn-save" onclick="saveEdit()">저장</button>
+            <button class="btn-cancel" onclick="cancelEdit()">취소</button>
+          </div>
+        </div>
+        <div class="hero-right">
+          <div class="hero-stat">
+            <div class="hero-stat-label">사용</div>
+            <div class="hero-stat-value" id="heroSpent">0원</div>
+          </div>
+          <div class="hero-stat">
+            <div class="hero-stat-label">남은 예산</div>
+            <div class="hero-stat-value" id="heroRemain" style="color:var(--income)">0원</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="progress-wrap">
+        <div class="progress-track">
+          <div class="progress-carryover-bg" id="progressCarryoverBg" style="width:0%"></div>
+          <div class="progress-bar safe" id="progressBar" style="width:0%"></div>
+          <div class="progress-divider" id="progressDivider" style="display:none"></div>
+        </div>
+        <div class="progress-labels">
+          <span class="progress-pct safe" id="progressPct">0%</span>
+          <span id="progressDetail" style="font-size:12px;color:var(--text-muted)"></span>
+        </div>
+        <div class="status-msg safe" id="statusMsg"></div>
+      </div>
+    </div>
+
+    <div class="carryover-card" id="carryoverCard">
+      <div class="carryover-card-header">
+        <div class="carryover-card-title">↩ 이월 내역</div>
+        <div class="carryover-total" id="carryoverTotal"></div>
+      </div>
+      <div class="carryover-history" id="carryoverHistory"></div>
+    </div>
+
+    <div class="guide-grid">
+      <div class="guide-card"><div class="guide-card-label">하루 평균 지출</div><div class="guide-card-value" id="guideDaily">—</div><div class="guide-card-sub" id="guideDailySub"></div></div>
+      <div class="guide-card"><div class="guide-card-label">하루 가능 금액</div><div class="guide-card-value" id="guidePerDay">—</div><div class="guide-card-sub" id="guidePerDaySub"></div></div>
+      <div class="guide-card"><div class="guide-card-label">예상 월말 지출</div><div class="guide-card-value" id="guideForecast">—</div><div class="guide-card-sub" id="guideForecastSub"></div></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">일별 지출</div>
+        <span style="font-size:12px;color:var(--text-muted)" id="stripLabel"></span>
+      </div>
+      <div class="calendar-strip" id="calendarStrip"></div>
+    </div>
+
+    <div class="section-card">
+      <div class="section-header">
+        <div class="section-title">카테고리별 지출</div>
+        <span style="font-size:12px;color:var(--text-muted)">사용 가능 예산 기준</span>
+      </div>
+      <div class="cat-list" id="catList"></div>
+    </div>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/js/api.js"></script>
+<script src="/js/budget.js"></script>
+</body>
+</html>
