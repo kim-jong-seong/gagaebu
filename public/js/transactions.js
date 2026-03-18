@@ -10,6 +10,7 @@ let editingId   = null;
 let allCats     = [];
 let allPays     = [];
 let txCache     = {};
+let defaultIncome = {};
 
 const PAGE_SIZE  = 10;
 const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
@@ -18,8 +19,47 @@ const DAY_NAMES   = ['일','월','화','수','목','금','토'];
 // ── 초기화 ────────────────────────────────────────────
 async function init() {
   updateMonthLabel();
-  await loadFilters();
+  await Promise.all([loadFilters(), loadDefaultIncome()]);
   await loadList();
+}
+
+async function loadDefaultIncome() {
+  const s = await API.settings.get();
+  defaultIncome = {
+    name:               s.default_income_name              || '',
+    amount:             s.default_income_amount             || '',
+    day:                Number(s.default_income_day)        || null,
+    category_id:        Number(s.default_income_category_id)        || null,
+    payment_method_id:  Number(s.default_income_payment_method_id)  || null,
+  };
+}
+
+function applyDefaultIncome() {
+  if (!defaultIncome.name && !defaultIncome.amount) {
+    showToast('설정에서 기본 수입을 먼저 등록해주세요');
+    return;
+  }
+  if (defaultIncome.amount) document.getElementById('mAmount').value = defaultIncome.amount;
+  if (defaultIncome.name)   document.getElementById('mDesc').value   = defaultIncome.name;
+  if (defaultIncome.day) {
+    const lastDay = new Date(curYear, curMonth, 0).getDate();
+    const day = Math.min(defaultIncome.day, lastDay);
+    document.getElementById('mDate').value =
+      `${curYear}-${String(curMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+
+  if (defaultIncome.category_id) {
+    const catEl = document.getElementById('mCat');
+    for (const o of catEl.options) {
+      if (Number(o.value) === defaultIncome.category_id) { o.selected = true; break; }
+    }
+  }
+  if (defaultIncome.payment_method_id) {
+    const payEl = document.getElementById('mPay');
+    for (const o of payEl.options) {
+      if (Number(o.value) === defaultIncome.payment_method_id) { o.selected = true; break; }
+    }
+  }
 }
 
 async function loadFilters() {
@@ -219,6 +259,7 @@ function setModalType(type) {
   modalType = type;
   document.getElementById('mBtnExpense').classList.toggle('active', type === 'expense');
   document.getElementById('mBtnIncome').classList.toggle('active', type === 'income');
+  document.getElementById('defaultIncomeBtn').style.display = type === 'income' ? '' : 'none';
 
   const cats = allCats.filter(c => c.type === type);
   const pays = allPays;

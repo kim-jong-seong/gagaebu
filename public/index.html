@@ -190,6 +190,9 @@
           <button class="type-btn expense active" id="btnExpense" onclick="setType('expense')">지출</button>
           <button class="type-btn income" id="btnIncome" onclick="setType('income')">수입</button>
         </div>
+        <div id="defaultIncomeBtn" style="display:none;margin-bottom:14px">
+          <button onclick="applyDefaultIncome()" style="width:100%;padding:8px 12px;background:var(--income-bg);color:var(--income);border:1px solid var(--income);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">↩ 기본 수입 불러오기</button>
+        </div>
         <div class="form-group">
           <label class="form-label">금액</label>
           <div class="amount-input-wrap">

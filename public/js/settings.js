@@ -8,9 +8,23 @@ const ICON_OPTIONS = ['🍔','🚌','🏠','🎬','📚','💊','🛍','💵','�
 // ── 초기화 ────────────────────────────────────────────
 async function init() {
   appSettings = await API.settings.get();
+  await loadDefaultIncomeSelects();
   applySettings();
   loadProfileStats();
   loadAvatar();
+}
+
+async function loadDefaultIncomeSelects() {
+  const [cats, pays] = await Promise.all([API.categories.list(), API.paymentMethods.list()]);
+  const incomeCats = cats.filter(c => c.type === 'income');
+
+  document.getElementById('setDefaultIncomeCat').innerHTML =
+    `<option value="">분류 선택</option>` +
+    incomeCats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+  document.getElementById('setDefaultIncomePay').innerHTML =
+    `<option value="">입금수단 선택</option>` +
+    pays.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
 }
 
 function applySettings() {
@@ -26,6 +40,15 @@ function applySettings() {
 
   const budgetEl = document.getElementById('setDefaultBudget');
   if (budgetEl) budgetEl.value = appSettings.default_budget || '';
+
+  const amtEl  = document.getElementById('setDefaultIncomeAmount');
+  if (amtEl)  amtEl.value  = appSettings.default_income_amount || '';
+  const nameEl = document.getElementById('setDefaultIncomeName');
+  if (nameEl) nameEl.value = appSettings.default_income_name   || '';
+  const dayEl  = document.getElementById('setDefaultIncomeDay');
+  if (dayEl)  dayEl.value  = appSettings.default_income_day    || '';
+  setSelectValue('setDefaultIncomeCat', appSettings.default_income_category_id);
+  setSelectValue('setDefaultIncomePay', appSettings.default_income_payment_method_id);
 }
 
 function setSelectValue(id, value) {

@@ -227,6 +227,42 @@
               </div>
             </div>
           </div>
+
+          <div class="section-card">
+            <div class="section-title">기본 수입 설정</div>
+            <div class="setting-row">
+              <div class="setting-left"><div class="setting-label">금액</div></div>
+              <div class="input-unit-wrap">
+                <input class="setting-input" type="number" id="setDefaultIncomeAmount" style="width:120px"
+                  onblur="saveSetting('default_income_amount', this.value)" />
+                <span class="input-unit">원</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-left"><div class="setting-label">내용</div><div class="setting-desc">수입 추가 시 자동 입력될 내용</div></div>
+              <input class="setting-input" type="text" id="setDefaultIncomeName" placeholder="예: 월급"
+                onblur="saveSetting('default_income_name', this.value)" />
+            </div>
+            <div class="setting-row">
+              <div class="setting-left"><div class="setting-label">날짜</div><div class="setting-desc">매달 고정 입금일</div></div>
+              <div class="input-unit-wrap">
+                <input class="setting-input" type="number" id="setDefaultIncomeDay" style="width:80px"
+                  min="1" max="31" placeholder="예: 25"
+                  onblur="saveSetting('default_income_day', this.value)" />
+                <span class="input-unit">일</span>
+              </div>
+            </div>
+            <div class="setting-row">
+              <div class="setting-left"><div class="setting-label">수입 분류</div></div>
+              <select class="setting-select" id="setDefaultIncomeCat"
+                onchange="saveSetting('default_income_category_id', this.value)"></select>
+            </div>
+            <div class="setting-row">
+              <div class="setting-left"><div class="setting-label">입금수단</div></div>
+              <select class="setting-select" id="setDefaultIncomePay"
+                onchange="saveSetting('default_income_payment_method_id', this.value)"></select>
+            </div>
+          </div>
         </div>
 
         <!-- 카테고리 -->

@@ -6,6 +6,7 @@ let curMonth = now.getMonth() + 1; // 1-indexed
 let categories    = { expense: [], income: [] };
 let paymentMethods = [];
 let currentType   = 'expense';
+let defaultIncome = {};
 let txFilter      = 'all';
 let selectedCatId = null;
 let selectedPayId = null;
@@ -19,7 +20,7 @@ const BAR_COLORS  = ['#e67e22','#8e44ad','#2980b9','#16a085','#27ae60','#c0392b'
 // ── 초기화 ────────────────────────────────────────────
 async function init() {
   updateMonthLabel();
-  await Promise.all([loadCategories(), loadPaymentMethods()]);
+  await Promise.all([loadCategories(), loadPaymentMethods(), loadDefaultIncome()]);
   renderCatGrid(currentType);
   document.getElementById('dateInput').value = now.toISOString().split('T')[0];
   await loadAll();
@@ -343,6 +344,41 @@ function setTxFilter(btn, type) {
 }
 
 // ── 카테고리/결제수단 로드 ─────────────────────────────
+async function loadDefaultIncome() {
+  const s = await API.settings.get();
+  defaultIncome = {
+    name:               s.default_income_name              || '',
+    amount:             s.default_income_amount             || '',
+    day:                Number(s.default_income_day)        || null,
+    category_id:        s.default_income_category_id        || null,
+    payment_method_id:  s.default_income_payment_method_id  || null,
+  };
+}
+
+function applyDefaultIncome() {
+  if (!defaultIncome.name && !defaultIncome.amount) {
+    showToast('설정에서 기본 수입을 먼저 등록해주세요');
+    return;
+  }
+  if (defaultIncome.amount) document.getElementById('amountInput').value = defaultIncome.amount;
+  if (defaultIncome.name)   document.getElementById('descInput').value   = defaultIncome.name;
+  if (defaultIncome.day) {
+    const lastDay = new Date(curYear, curMonth, 0).getDate();
+    const day = Math.min(defaultIncome.day, lastDay);
+    document.getElementById('dateInput').value =
+      `${curYear}-${String(curMonth).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+  }
+
+  if (defaultIncome.category_id) {
+    const btn = document.querySelector(`#catGrid .cat-btn[data-id="${defaultIncome.category_id}"]`);
+    if (btn) selectCat(btn);
+  }
+  if (defaultIncome.payment_method_id) {
+    const btn = document.querySelector(`#payGrid .cat-btn[data-id="${defaultIncome.payment_method_id}"]`);
+    if (btn) selectPay(btn);
+  }
+}
+
 async function loadCategories() {
   const all = await API.categories.list();
   categories.expense = all.filter(c => c.type === 'expense');
@@ -377,6 +413,7 @@ function setType(type) {
   currentType = type;
   document.getElementById('btnExpense').classList.toggle('active', type === 'expense');
   document.getElementById('btnIncome').classList.toggle('active', type === 'income');
+  document.getElementById('defaultIncomeBtn').style.display = type === 'income' ? '' : 'none';
   renderCatGrid(type);
 }
 
