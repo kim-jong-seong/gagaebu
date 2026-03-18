@@ -61,17 +61,18 @@
     .toggle-switch::after { content: ''; position: absolute; width: 12px; height: 12px; background: #fff; border-radius: 50%; top: 2px; left: 2px; transition: left .2s; box-shadow: 0 1px 2px rgba(0,0,0,.2); }
     .toggle-switch.on { background: var(--carryover); }
     .toggle-switch.on::after { left: 14px; }
-    .hero-right { display: flex; gap: 28px; flex-shrink: 0; }
-    .hero-stat { text-align: right; }
-    .hero-stat-label { font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
-    .hero-stat-value { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
     .progress-wrap { position: relative; }
     .progress-track { height: 12px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 10px; position: relative; }
-    .progress-carryover-bg { position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px; opacity: .25; background: var(--carryover); transition: width .5s cubic-bezier(.4,0,.2,1); }
     .progress-bar { position: absolute; left: 0; top: 0; height: 100%; border-radius: 99px; transition: width .5s cubic-bezier(.4,0,.2,1), background .3s; }
     .progress-bar.safe { background: var(--income); } .progress-bar.warn { background: var(--warn); } .progress-bar.over { background: var(--expense); }
-    .progress-divider { position: absolute; top: -2px; bottom: -2px; width: 2px; background: rgba(123,63,228,.5); border-radius: 1px; transition: left .3s; }
-    .progress-divider::after { content: '기본'; position: absolute; top: -16px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--carryover); font-weight: 600; white-space: nowrap; }
+    .money-flow-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 28px; box-shadow: var(--shadow); margin-bottom: 16px; display: flex; align-items: center; }
+    .mf-stat { flex: 1; text-align: center; padding: 8px 12px; }
+    .mf-sep { font-size: 20px; font-weight: 300; color: var(--text-muted); flex-shrink: 0; padding: 0 4px; align-self: center; }
+    .mf-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.4px; color: var(--text-muted); margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+    .mf-value { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+    .mf-value.income  { color: var(--income); }
+    .mf-value.expense { color: var(--expense); }
+    .mf-value.carryover { color: var(--carryover); }
     .progress-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
     .progress-pct { font-weight: 700; font-size: 13px; }
     .progress-pct.safe { color: var(--income); } .progress-pct.warn { color: var(--warn); } .progress-pct.over { color: var(--expense); }
@@ -151,65 +152,55 @@
     </div>
 
     <div class="budget-hero">
-      <div class="hero-top">
-        <div class="hero-left">
-          <div class="hero-label">이번 달 사용 가능 금액</div>
-          <div id="displayMode">
-            <div class="budget-formula">
-              <div class="formula-base">
-                <span class="formula-amount" id="formulaBase" onclick="startEdit()" title="클릭해서 수정">0</span>
-                <span class="formula-unit">원</span>
-              </div>
-              <span class="formula-plus" id="formulaPlus">+</span>
-              <div class="formula-carryover" id="formulaCarryover" onclick="toggleCarryoverCard()">
-                <span class="formula-carryover-amount" id="formulaCarryoverAmt">+0</span>
-                <span class="formula-carryover-label">원 이월</span>
-              </div>
-              <span class="formula-eq" id="formulaEq">=</span>
-              <div class="formula-total" id="formulaTotal">
-                <span class="formula-total-amount" id="formulaTotalAmt">0</span>
-                <span class="formula-unit">원</span>
-              </div>
-            </div>
-            <div class="hero-hint">
-              <span>기본 예산 클릭해서 수정</span>
-              <label class="carryover-toggle" onclick="toggleCarryover()">
-                <div class="toggle-switch" id="carryoverToggle"></div>
-                <span id="carryoverLabel">이월 미적용</span>
-              </label>
-            </div>
-          </div>
-          <div class="inline-edit" id="editMode">
-            <input class="inline-input" type="number" id="heroInput" placeholder="0"
-              onkeydown="if(event.key==='Enter')saveEdit();if(event.key==='Escape')cancelEdit();" />
+      <div class="hero-label">이번 달 예산</div>
+      <div id="displayMode">
+        <div class="budget-formula">
+          <div class="formula-base">
+            <span class="formula-amount" id="formulaBase" onclick="startEdit()" title="클릭해서 수정">0</span>
             <span class="formula-unit">원</span>
-            <button class="btn-save" onclick="saveEdit()">저장</button>
-            <button class="btn-cancel" onclick="cancelEdit()">취소</button>
           </div>
         </div>
-        <div class="hero-right">
-          <div class="hero-stat">
-            <div class="hero-stat-label">사용</div>
-            <div class="hero-stat-value" id="heroSpent">0원</div>
-          </div>
-          <div class="hero-stat">
-            <div class="hero-stat-label">남은 예산</div>
-            <div class="hero-stat-value" id="heroRemain" style="color:var(--income)">0원</div>
-          </div>
-        </div>
+        <div class="hero-hint">예산 클릭해서 수정</div>
+      </div>
+      <div class="inline-edit" id="editMode">
+        <input class="inline-input" type="number" id="heroInput" placeholder="0"
+          onkeydown="if(event.key==='Enter')saveEdit();if(event.key==='Escape')cancelEdit();" />
+        <span class="formula-unit">원</span>
+        <button class="btn-save" onclick="saveEdit()">저장</button>
+        <button class="btn-cancel" onclick="cancelEdit()">취소</button>
       </div>
 
-      <div class="progress-wrap">
+      <div class="progress-wrap" style="margin-top:20px">
         <div class="progress-track">
-          <div class="progress-carryover-bg" id="progressCarryoverBg" style="width:0%"></div>
           <div class="progress-bar safe" id="progressBar" style="width:0%"></div>
-          <div class="progress-divider" id="progressDivider" style="display:none"></div>
         </div>
         <div class="progress-labels">
           <span class="progress-pct safe" id="progressPct">0%</span>
           <span id="progressDetail" style="font-size:12px;color:var(--text-muted)"></span>
         </div>
         <div class="status-msg safe" id="statusMsg"></div>
+      </div>
+    </div>
+
+    <div class="money-flow-card">
+      <div class="mf-stat">
+        <div class="mf-label">수입</div>
+        <div class="mf-value income" id="mfIncome">0원</div>
+      </div>
+      <div class="mf-sep" id="mfSepPlus">+</div>
+      <div class="mf-stat" id="mfCarryoverStat">
+        <div class="mf-label">이월</div>
+        <div class="mf-value carryover" id="mfCarryover" style="cursor:pointer" onclick="toggleCarryoverCard()">0원</div>
+      </div>
+      <div class="mf-sep">−</div>
+      <div class="mf-stat">
+        <div class="mf-label">사용</div>
+        <div class="mf-value expense" id="mfSpent">0원</div>
+      </div>
+      <div class="mf-sep">=</div>
+      <div class="mf-stat">
+        <div class="mf-label">잔액</div>
+        <div class="mf-value" id="mfBalance">0원</div>
       </div>
     </div>
 

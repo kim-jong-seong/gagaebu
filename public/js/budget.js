@@ -8,6 +8,7 @@ let carryover        = 0;
 let carryoverEnabled = true;
 let carryoverCardOpen = false;
 let spent            = 0;
+let income           = 0;
 let dailyData        = [];
 let catData          = [];
 let settings         = {};
@@ -36,7 +37,8 @@ async function loadBudget() {
 
 async function loadSpent() {
   const s = await API.transactions.summary(curYear, curMonth);
-  spent = s.expense;
+  spent  = s.expense;
+  income = s.income;
 }
 
 async function loadDailyData() {
@@ -53,7 +55,8 @@ let _carryoverMonths = []; // { year, month, budget, spent } — calcCarryover�
 async function calcCarryover() {
   if (!carryoverEnabled) { carryover = 0; _carryoverMonths = []; return; }
 
-  const maxMonths = Number(settings.carryover_max_months || 3);
+  const raw = Number(settings.carryover_max_months);
+  const maxMonths = raw > 0 ? raw : 12; // 0 = '제한 없음' → 최대 12개월
   const fetches = [];
   for (let i = maxMonths; i >= 1; i--) {
     let m = curMonth - i, y = curYear;
@@ -62,83 +65,71 @@ async function calcCarryover() {
   }
 
   const results = await Promise.all(
-    fetches.map(({ y, m }) => Promise.all([API.budgets.get(y, m), API.transactions.summary(y, m)]))
+    fetches.map(({ y, m }) => API.transactions.summary(y, m))
   );
 
-  _carryoverMonths = results.map(([b, s], idx) => ({
+  _carryoverMonths = results.map((s, idx) => ({
     year: fetches[idx].y, month: fetches[idx].m,
-    budget: b.amount, spent: s.expense,
+    income: s.income, spent: s.expense,
   }));
-  carryover = _carryoverMonths.reduce((t, m) => t + Math.max(m.budget - m.spent, 0), 0);
+  // 이월 = 실제 수입 - 지출 (거래 없는 달은 자동으로 0)
+  carryover = _carryoverMonths.reduce((t, m) => t + Math.max(m.income - m.spent, 0), 0);
 }
 
 // ── 렌더링 ────────────────────────────────────────────
 async function render() {
   await calcCarryover();
 
-  const totalBudget = baseBudget + (carryoverEnabled ? carryover : 0);
-  const remain      = totalBudget - spent;
-  const pct         = totalBudget > 0 ? Math.min((spent / totalBudget) * 100, 100) : 0;
-  const level       = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'safe';
+  const effectiveCarryover = carryoverEnabled ? carryover : 0;
 
-  // 수식 표시
+  // ── 영역 1: 예산 (지출 한도 기준) ──
+  const budgetRemain = baseBudget - spent;
+  const pct          = baseBudget > 0 ? Math.min((spent / baseBudget) * 100, 100) : 0;
+  const level        = pct >= 100 ? 'over' : pct >= 80 ? 'warn' : 'safe';
+
   document.getElementById('formulaBase').textContent = baseBudget.toLocaleString('ko-KR');
-  const hasCarryover = carryoverEnabled && carryover > 0;
-  document.getElementById('formulaPlus').style.display      = hasCarryover ? '' : 'none';
-  document.getElementById('formulaCarryover').style.display = hasCarryover ? '' : 'none';
-  document.getElementById('formulaEq').style.display        = hasCarryover ? '' : 'none';
-  document.getElementById('formulaTotal').style.display     = hasCarryover ? '' : 'none';
-  document.getElementById('formulaCarryoverAmt').textContent = '+' + carryover.toLocaleString('ko-KR');
-  document.getElementById('formulaTotalAmt').textContent     = totalBudget.toLocaleString('ko-KR');
 
-  // 이월 토글
-  const toggle = document.getElementById('carryoverToggle');
-  toggle.classList.toggle('on', carryoverEnabled);
-  document.getElementById('carryoverLabel').textContent = carryoverEnabled ? '이월 적용 중' : '이월 미적용';
-
-  // 오른쪽 수치
-  document.getElementById('heroSpent').textContent  = fmt(spent);
-  document.getElementById('heroRemain').textContent = fmt(Math.abs(remain));
-  document.getElementById('heroRemain').style.color = remain >= 0 ? 'var(--income)' : 'var(--expense)';
-
-  // 진행바
   const bar = document.getElementById('progressBar');
   bar.style.width = pct + '%';
-  bar.className = `progress-bar ${level}`;
-
-  const divider = document.getElementById('progressDivider');
-  if (hasCarryover && totalBudget > 0) {
-    divider.style.display = '';
-    divider.style.left    = ((baseBudget / totalBudget) * 100) + '%';
-    document.getElementById('progressCarryoverBg').style.width =
-      ((carryover / totalBudget) * 100) + '%';
-  } else {
-    divider.style.display = 'none';
-    document.getElementById('progressCarryoverBg').style.width = '0%';
-  }
+  bar.className   = `progress-bar ${level}`;
 
   const pctEl = document.getElementById('progressPct');
-  pctEl.textContent  = Math.round(pct) + '%';
-  pctEl.className    = `progress-pct ${level}`;
-  document.getElementById('progressDetail').textContent =
-    `${fmt(spent)} / ${fmt(totalBudget)}`;
+  pctEl.textContent = Math.round(pct) + '%';
+  pctEl.className   = `progress-pct ${level}`;
+  document.getElementById('progressDetail').textContent = `${fmt(spent)} / ${fmt(baseBudget)}`;
 
   const statusMsg = document.getElementById('statusMsg');
-  statusMsg.className = `status-msg ${totalBudget === 0 ? 'no-budget' : level}`;
-  statusMsg.textContent = totalBudget === 0
+  statusMsg.className   = `status-msg ${baseBudget === 0 ? 'no-budget' : level}`;
+  statusMsg.textContent = baseBudget === 0
     ? '예산을 설정해주세요'
-    : level === 'over'  ? `⚠️ 예산을 ${fmt(Math.abs(remain))} 초과했어요`
-    : level === 'warn'  ? `⚡ 예산의 80%를 넘었어요. 남은 금액 ${fmt(remain)}`
-    :                     `✅ 양호해요. 남은 예산 ${fmt(remain)}`;
+    : level === 'over' ? `⚠️ 예산을 ${fmt(Math.abs(budgetRemain))} 초과했어요`
+    : level === 'warn' ? `⚡ 예산의 80%를 넘었어요. 남은 금액 ${fmt(budgetRemain)}`
+    :                    `✅ 양호해요. 남은 예산 ${fmt(budgetRemain)}`;
+
+  // ── 영역 2: 실제 자금 흐름 ──
+  const balance = income + effectiveCarryover - spent;
+
+  document.getElementById('mfIncome').textContent    = fmt(income);
+  document.getElementById('mfCarryover').textContent = fmt(effectiveCarryover);
+  document.getElementById('mfSpent').textContent     = fmt(spent);
+
+  const balEl = document.getElementById('mfBalance');
+  balEl.textContent = (balance < 0 ? '-' : '') + fmt(Math.abs(balance));
+  balEl.style.color = balance >= 0 ? 'var(--income)' : 'var(--expense)';
+
+  // 이월 컬럼 — 설정에서 off면 숨김
+  const showCarryover = carryoverEnabled;
+  document.getElementById('mfCarryoverStat').style.display = showCarryover ? '' : 'none';
+  document.getElementById('mfSepPlus').style.display       = showCarryover ? '' : 'none';
 
   // 가이드 카드
-  renderGuide(totalBudget, remain);
+  renderGuide(baseBudget, budgetRemain);
 
   // 일별 스트립
   renderDailyStrip();
 
   // 카테고리
-  renderCats(totalBudget);
+  renderCats(baseBudget);
 
   // 이월 카드
   renderCarryoverCard();
@@ -208,17 +199,19 @@ function renderCats(totalBudget) {
 
 async function renderCarryoverCard() {
   const months = _carryoverMonths;
-  const totalCarry = months.reduce((s, m) => s + Math.max(m.budget - m.spent, 0), 0);
+  const totalCarry = months.reduce((s, m) => s + Math.max(m.income - m.spent, 0), 0);
   document.getElementById('carryoverTotal').textContent = `총 이월 ${fmt(totalCarry)}`;
 
-  document.getElementById('carryoverHistory').innerHTML = months.map((m, i) => {
-    const remain = m.budget - m.spent;
-    const pct    = m.budget > 0 ? Math.min(Math.round((m.spent / m.budget) * 100), 100) : 0;
+  // 거래가 있는 달만 표시
+  const activMonths = months.filter(m => m.income > 0 || m.spent > 0);
+  document.getElementById('carryoverHistory').innerHTML = activMonths.map((m, i) => {
+    const remain = m.income - m.spent;
+    const pct    = m.income > 0 ? Math.min(Math.round((m.spent / m.income) * 100), 100) : 0;
     return `
-      <div class="co-month${i === months.length - 1 ? ' co-current' : ''}">
-        ${i < months.length - 1 ? '<div class="co-arrow">›</div>' : ''}
+      <div class="co-month${i === activMonths.length - 1 ? ' co-current' : ''}">
+        ${i < activMonths.length - 1 ? '<div class="co-arrow">›</div>' : ''}
         <div class="co-month-label">${m.year}년 ${MONTH_NAMES[m.month - 1]}</div>
-        <div class="co-month-budget">예산 ${fmtShort(m.budget)}</div>
+        <div class="co-month-budget">수입 ${fmtShort(m.income)}</div>
         <div class="co-month-spent">지출 ${fmtShort(m.spent)}</div>
         <div class="co-month-remain${remain < 0 ? ' deficit' : ''}">${remain >= 0 ? '+' : ''}${fmtShort(remain)}</div>
         <div class="co-bar-wrap"><div class="co-bar" style="width:${pct}%"></div></div>
@@ -246,12 +239,6 @@ function toggleCarryoverCard() {
   document.getElementById('carryoverCard').classList.toggle('visible', carryoverCardOpen);
 }
 
-async function toggleCarryover() {
-  carryoverEnabled = !carryoverEnabled;
-  await API.settings.update({ carryover_enabled: String(carryoverEnabled) });
-  settings.carryover_enabled = String(carryoverEnabled);
-  render();
-}
 
 // ── 예산 편집 ──────────────────────────────────────────
 function startEdit() {
