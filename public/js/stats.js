@@ -43,7 +43,7 @@ async function renderYear() {
   document.getElementById('lIncome').textContent     = '연간 수입';
   document.getElementById('lExpense').textContent    = '연간 지출';
   document.getElementById('trendTitle').textContent  = '월별 수입·지출';
-  document.getElementById('momTitle').textContent    = '전년도 대비 (월별)';
+  document.getElementById('momTitle').textContent    = '전년도 대비 지출 (월별)';
   document.getElementById('savingsTitle').textContent = '월별 저축률';
   document.getElementById('secSavings').style.display = '';
   document.getElementById('secDow').style.display    = 'none';
