@@ -2,6 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
+  <script src="/js/auth.js"></script>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>가계부</title>
   <style>
@@ -61,7 +62,8 @@
     .tx-amount { font-weight: 600; font-size: 14px; white-space: nowrap; }
     .tx-amount.income { color: var(--income); }
     .tx-amount.expense { color: var(--expense); }
-    .add-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); position: sticky; top: 36px; }
+    .add-panel-overlay { position: sticky; top: 36px; }
+    .add-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
     .add-panel .section-title { margin-bottom: 20px; }
     .type-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 18px; }
     .type-btn { padding: 10px; border: none; background: none; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s; color: var(--text-muted); font-family: inherit; }
@@ -92,6 +94,45 @@
     .empty-state { padding: 32px; text-align: center; color: var(--text-muted); font-size: 13px; }
     .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500; opacity: 0; transition: all .25s; pointer-events: none; z-index: 200; white-space: nowrap; }
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .add-btn { display: flex; align-items: center; gap: 6px; padding: 9px 16px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; transition: opacity .15s; font-family: inherit; white-space: nowrap; }
+    .add-btn:hover { opacity: .88; }
+    .mobile-add-btn { display: none; }
+    .add-panel-close { display: none; background: none; border: none; font-size: 20px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+    .add-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    /* add-panel-overlay: desktop에서는 sticky 래퍼(위에서 정의됨). 모바일에서만 오버레이로 동작 */
+    @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+    @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
+
+    /* ── 하단 탭바 ───────────────────────────────── */
+    .bottom-tab-bar { display: none; position: fixed; bottom: 0; left: 0; width: 100vw; height: 60px; background: var(--surface); border-top: 1px solid var(--border); z-index: 9999; flex-direction: row; }
+    .bottom-tab { flex: 1 1 0px; min-width: 0; max-width: 20%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: var(--text-muted); font-size: 10px; font-weight: 500; white-space: nowrap; transition: color .15s; }
+    .bottom-tab.active { color: var(--accent); }
+    .bottom-tab-icon { font-size: 20px; line-height: 1; }
+
+    /* ── 모바일 ──────────────────────────────────── */
+    @media (max-width: 767px) {
+      .bottom-tab-bar { display: flex; }
+      .sidebar { display: none; }
+      .main { margin-left: 0; padding: 20px 16px 76px; max-width: 100%; }
+      .page-header { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 20px; }
+      .page-header > div:first-child { flex: 1; }
+      .page-title { font-size: 18px; }
+      .mobile-add-btn { display: flex; }
+      .month-nav { width: 100%; justify-content: space-between; }
+      .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+      .summary-grid > .card:last-child { grid-column: 1 / -1; }
+      .card-amount { font-size: 20px; }
+      .content-grid { grid-template-columns: 1fr; }
+      .add-panel-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 100; }
+      .add-panel-overlay.open { display: flex; align-items: flex-end; padding-bottom: 60px; }
+      .add-panel { display: none; width: 100%; border-radius: 16px 16px 0 0; max-height: calc(85vh - 60px); overflow-y: auto; padding-bottom: 24px; }
+      .add-panel .form-group { overflow: hidden; }
+      .add-panel .form-control { width: 100%; min-width: 0; box-sizing: border-box; }
+      .add-panel.open { display: block; animation: slideUp .25s ease; }
+      .add-panel.closing { animation: slideDown .25s ease; }
+      .add-panel-close { display: block; }
+      .toast { bottom: 76px; }
+    }
   </style>
 </head>
 <body>
@@ -99,11 +140,11 @@
   <aside class="sidebar">
     <div class="logo">mon<span>.</span>ey</div>
     <nav>
-      <a class="nav-item active" href="index.html"><span class="nav-icon">&#9689;</span> 대시보드</a>
-      <a class="nav-item" href="transactions.html"><span class="nav-icon">&#8644;</span> 거래 내역</a>
-      <a class="nav-item" href="budget.html"><span class="nav-icon">&#9685;</span> 예산 관리</a>
-      <a class="nav-item" href="stats.html"><span class="nav-icon">&#9783;</span> 통계</a>
-      <a class="nav-item" href="settings.html"><span class="nav-icon">&#9881;</span> 설정</a>
+      <a class="nav-item active" href="index.html"><span class="nav-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg></span> 대시보드</a>
+      <a class="nav-item" href="transactions.html"><span class="nav-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M2 14l3 3 3-3"/><path d="M15 17V3M12 6l3-3 3 3"/></svg></span> 거래 내역</a>
+      <a class="nav-item" href="budget.html"><span class="nav-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="18" height="12" rx="2"/><path d="M1 9h18"/><path d="M5 13h3M14 13h1"/></svg></span> 예산 관리</a>
+      <a class="nav-item" href="stats.html"><span class="nav-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17h16"/><rect x="3" y="10" width="4" height="7" rx="0.5"/><rect x="8" y="6" width="4" height="11" rx="0.5"/><rect x="13" y="3" width="4" height="14" rx="0.5"/></svg></span> 통계</a>
+      <a class="nav-item" href="settings.html"><span class="nav-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="6" y2="5"/><circle cx="8.5" cy="5" r="2.5" fill="var(--surface)"/><line x1="11" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="11" y2="10"/><circle cx="13.5" cy="10" r="2.5" fill="var(--surface)"/><line x1="16" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="6" y2="15"/><circle cx="8.5" cy="15" r="2.5" fill="var(--surface)"/><line x1="11" y1="15" x2="17" y2="15"/></svg></span> 설정</a>
     </nav>
     <div class="sidebar-footer">v1.0 &nbsp;·&nbsp; 가계부</div>
   </aside>
@@ -114,6 +155,7 @@
         <div class="page-title">대시보드</div>
         <div class="page-subtitle" id="pageSubtitle">불러오는 중...</div>
       </div>
+      <button class="mobile-add-btn add-btn" onclick="openAddPanel()">+ 거래 추가</button>
       <div class="month-nav">
         <button class="month-btn" onclick="changeMonth(-1)">&#8249;</button>
         <span class="month-label" id="monthLabel"></span>
@@ -156,8 +198,8 @@
           <div class="section-header">
             <div class="section-title">주차별 흐름 <span id="weekChartLabel" style="font-size:12px;font-weight:400;color:var(--text-muted)"></span></div>
             <div style="display:flex;gap:12px;font-size:11px;color:var(--text-muted)">
-              <span style="display:flex;align-items:center;gap:5px"><span style="width:14px;border-top:2px dashed var(--income);opacity:.8;display:inline-block"></span>수입 발생</span>
-              <span style="display:flex;align-items:center;gap:4px"><span style="width:14px;border-top:2px solid var(--expense);opacity:.8;display:inline-block"></span>지출 추이</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:14px;border-top:2px solid var(--income);opacity:.8;display:inline-block"></span>수입</span>
+              <span style="display:flex;align-items:center;gap:4px"><span style="width:14px;border-top:2px solid var(--expense);opacity:.8;display:inline-block"></span>지출</span>
             </div>
           </div>
           <canvas id="weekChart"></canvas>
@@ -184,49 +226,84 @@
         </div>
       </div>
 
-      <div class="add-panel">
-        <div class="section-title">거래 추가</div>
-        <div class="type-toggle">
-          <button class="type-btn expense active" id="btnExpense" onclick="setType('expense')">지출</button>
-          <button class="type-btn income" id="btnIncome" onclick="setType('income')">수입</button>
-        </div>
-        <div id="defaultIncomeBtn" style="display:none;margin-bottom:14px">
-          <button onclick="applyDefaultIncome()" style="width:100%;padding:8px 12px;background:var(--income-bg);color:var(--income);border:1px solid var(--income);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">↩ 기본 수입 불러오기</button>
-        </div>
-        <div class="form-group">
-          <label class="form-label">금액</label>
-          <div class="amount-input-wrap">
-            <span class="amount-prefix">&#8361;</span>
-            <input class="form-control" type="number" placeholder="0" id="amountInput" />
+      <div class="add-panel-overlay" id="addPanelOverlay" onmousedown="handleOverlayMouseDown(event)" onclick="handleOverlayClick(event)">
+        <div class="add-panel">
+          <div class="add-panel-header">
+            <div class="section-title" style="margin-bottom:0">거래 추가</div>
+            <button class="add-panel-close" onclick="closeAddPanel()">&#215;</button>
           </div>
+          <div class="type-toggle">
+            <button class="type-btn expense active" id="btnExpense" onclick="setType('expense')">지출</button>
+            <button class="type-btn income" id="btnIncome" onclick="setType('income')">수입</button>
+          </div>
+          <div id="defaultIncomeBtn" style="display:none;margin-bottom:14px">
+            <button onclick="applyDefaultIncome()" style="width:100%;padding:8px 12px;background:var(--income-bg);color:var(--income);border:1px solid var(--income);border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">↩ 기본 수입 불러오기</button>
+          </div>
+          <div class="form-group">
+            <label class="form-label">금액</label>
+            <div class="amount-input-wrap">
+              <span class="amount-prefix">&#8361;</span>
+              <input class="form-control" type="text" inputmode="numeric" placeholder="0" id="amountInput" oninput="formatAmountInput(this)" style="text-align:right" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">내용</label>
+            <input class="form-control" type="text" placeholder="거래 내용 입력" id="descInput" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">날짜</label>
+            <input class="form-control" type="date" id="dateInput" style="text-align:center" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="catLabel">카테고리</label>
+            <div class="category-grid" id="catGrid"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label" id="payLabel">결제수단</label>
+            <div style="display:flex;gap:6px;flex-wrap:wrap" id="payGrid"></div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">메모 (선택)</label>
+            <input class="form-control" type="text" placeholder="간단한 메모" id="memoInput" />
+          </div>
+          <button class="submit-btn" onclick="addTransaction()">추가하기</button>
         </div>
-        <div class="form-group">
-          <label class="form-label">내용</label>
-          <input class="form-control" type="text" placeholder="거래 내용 입력" id="descInput" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">날짜</label>
-          <input class="form-control" type="date" id="dateInput" />
-        </div>
-        <div class="form-group">
-          <label class="form-label" id="catLabel">카테고리</label>
-          <div class="category-grid" id="catGrid"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label" id="payLabel">결제수단</label>
-          <div style="display:flex;gap:6px;flex-wrap:wrap" id="payGrid"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">메모 (선택)</label>
-          <input class="form-control" type="text" placeholder="간단한 메모" id="memoInput" />
-        </div>
-        <button class="submit-btn" onclick="addTransaction()">추가하기</button>
       </div>
     </div>
   </main>
 </div>
 <div class="toast" id="toast"></div>
+
+<nav class="bottom-tab-bar">
+  <a class="bottom-tab active" href="index.html"><span class="bottom-tab-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="7" height="7" rx="1.5"/><rect x="11" y="2" width="7" height="7" rx="1.5"/><rect x="2" y="11" width="7" height="7" rx="1.5"/><rect x="11" y="11" width="7" height="7" rx="1.5"/></svg></span>대시보드</a>
+  <a class="bottom-tab" href="transactions.html"><span class="bottom-tab-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v14M2 14l3 3 3-3"/><path d="M15 17V3M12 6l3-3 3 3"/></svg></span>거래</a>
+  <a class="bottom-tab" href="budget.html"><span class="bottom-tab-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="5" width="18" height="12" rx="2"/><path d="M1 9h18"/><path d="M5 13h3M14 13h1"/></svg></span>예산</a>
+  <a class="bottom-tab" href="stats.html"><span class="bottom-tab-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 17h16"/><rect x="3" y="10" width="4" height="7" rx="0.5"/><rect x="8" y="6" width="4" height="11" rx="0.5"/><rect x="13" y="3" width="4" height="14" rx="0.5"/></svg></span>통계</a>
+  <a class="bottom-tab" href="settings.html"><span class="bottom-tab-icon"><svg width="1em" height="1em" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="5" x2="6" y2="5"/><circle cx="8.5" cy="5" r="2.5" fill="var(--surface)"/><line x1="11" y1="5" x2="17" y2="5"/><line x1="3" y1="10" x2="11" y2="10"/><circle cx="13.5" cy="10" r="2.5" fill="var(--surface)"/><line x1="16" y1="10" x2="17" y2="10"/><line x1="3" y1="15" x2="6" y2="15"/><circle cx="8.5" cy="15" r="2.5" fill="var(--surface)"/><line x1="11" y1="15" x2="17" y2="15"/></svg></span>설정</a>
+</nav>
+
 <script src="/js/api.js"></script>
 <script src="/js/dashboard.js"></script>
+<script>
+var _overlayMouseDownTarget = null;
+function handleOverlayMouseDown(e) { _overlayMouseDownTarget = e.target; }
+function handleOverlayClick(e) { if (_overlayMouseDownTarget === e.currentTarget) closeAddPanel(); }
+function openAddPanel() {
+  var overlay = document.getElementById('addPanelOverlay');
+  var panel = overlay.querySelector('.add-panel');
+  overlay.classList.add('open');
+  panel.classList.add('open');
+}
+function closeAddPanel() {
+  var overlay = document.getElementById('addPanelOverlay');
+  var panel = overlay.querySelector('.add-panel');
+  if (!overlay.classList.contains('open')) return;
+  panel.classList.add('closing');
+  setTimeout(function() {
+    overlay.classList.remove('open');
+    panel.classList.remove('open', 'closing');
+  }, 240);
+}
+</script>
 </body>
 </html>

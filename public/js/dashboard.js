@@ -78,7 +78,14 @@ async function loadSummary() {
 
 // ── 월별 트렌드 차트 ──────────────────────────────────
 async function loadMonthlyTrend() {
-  _lastTrendData = await API.transactions.monthlyTrend(curYear);
+  const thisYear = await API.transactions.monthlyTrend(curYear);
+  let combined = thisYear.slice(0, curMonth);
+  if (combined.length < 6) {
+    const prevYear = await API.transactions.monthlyTrend(curYear - 1);
+    const needed = 6 - combined.length;
+    combined = [...prevYear.slice(-needed), ...combined];
+  }
+  _lastTrendData = combined;
   drawMonthChart(_lastTrendData);
 }
 
@@ -96,8 +103,7 @@ function drawMonthChart(data) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // 최근 6개월만 표시
-  const recent = data.slice(Math.max(0, data.length - 6));
+  const recent = data.slice(-6);
   const padL = 48, padR = 12, padT = 16, padB = 28;
   const cW = cssW - padL - padR;
   const cH = cssH - padT - padB;
@@ -202,13 +208,32 @@ function drawWeekChart(weekData) {
     ctx.fillText(fmtY((maxVal / steps) * i), padL - 6, y + 3.5);
   }
 
-  const groupW = cW / weekData.length;
-  const point  = (d, i) => ({
-    cx: padL + groupW * i + groupW / 2,
-    y:  padT + cH - (d.expense / maxVal) * cH,
+  const groupW   = cW / weekData.length;
+  const point    = (d, i) => ({ cx: padL + groupW * i + groupW / 2, y: padT + cH - (d.expense / maxVal) * cH });
+  const pointInc = (d, i) => ({ cx: padL + groupW * i + groupW / 2, y: padT + cH - (d.income  / maxVal) * cH });
+
+  // Income area fill
+  ctx.beginPath();
+  weekData.forEach((d, i) => { const p = pointInc(d, i); i === 0 ? ctx.moveTo(p.cx, p.y) : ctx.lineTo(p.cx, p.y); });
+  ctx.lineTo(pointInc(weekData[weekData.length - 1], weekData.length - 1).cx, padT + cH);
+  ctx.lineTo(pointInc(weekData[0], 0).cx, padT + cH);
+  ctx.closePath();
+  ctx.fillStyle = 'rgba(45,122,79,.08)';
+  ctx.fill();
+
+  // Income line
+  ctx.beginPath();
+  weekData.forEach((d, i) => { const p = pointInc(d, i); i === 0 ? ctx.moveTo(p.cx, p.y) : ctx.lineTo(p.cx, p.y); });
+  ctx.strokeStyle = 'rgba(45,122,79,.8)'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
+
+  // Income dots
+  weekData.forEach((d, i) => {
+    const p = pointInc(d, i);
+    ctx.beginPath(); ctx.arc(p.cx, p.y, 3.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#2d7a4f'; ctx.fill();
   });
 
-  // Area fill
+  // Expense area fill
   ctx.beginPath();
   weekData.forEach((d, i) => {
     const p = point(d, i);
@@ -222,37 +247,16 @@ function drawWeekChart(weekData) {
   ctx.fillStyle = 'rgba(192,57,43,.08)';
   ctx.fill();
 
-  // Line
+  // Expense line
   ctx.beginPath();
   weekData.forEach((d, i) => { const p = point(d, i); i === 0 ? ctx.moveTo(p.cx, p.y) : ctx.lineTo(p.cx, p.y); });
   ctx.strokeStyle = 'rgba(192,57,43,.8)'; ctx.lineWidth = 2; ctx.lineJoin = 'round'; ctx.stroke();
 
-  // Dots
+  // Expense dots
   weekData.forEach((d, i) => {
     const p = point(d, i);
     ctx.beginPath(); ctx.arc(p.cx, p.y, 3.5, 0, Math.PI * 2);
     ctx.fillStyle = '#c0392b'; ctx.fill();
-  });
-
-  // Income markers
-  weekData.forEach((d, i) => {
-    if (!d.income) return;
-    const cx = padL + groupW * i + groupW / 2;
-    ctx.save();
-    ctx.setLineDash([4, 3]);
-    ctx.strokeStyle = 'rgba(45,122,79,.5)'; ctx.lineWidth = 1.5;
-    ctx.beginPath(); ctx.moveTo(cx, padT + 4); ctx.lineTo(cx, padT + cH); ctx.stroke();
-    ctx.restore();
-
-    const label = '+' + fmtY(d.income);
-    ctx.font = `bold 10px -apple-system, sans-serif`;
-    const tw = ctx.measureText(label).width;
-    const bw = tw + 12, bh = 18, bx = cx - bw / 2, by = padT + 2;
-    ctx.fillStyle = 'rgba(45,122,79,.12)';
-    ctx.beginPath(); ctx.roundRect(bx, by, bw, bh, 4); ctx.fill();
-    ctx.strokeStyle = 'rgba(45,122,79,.4)'; ctx.lineWidth = 1; ctx.stroke();
-    ctx.fillStyle = '#2d7a4f'; ctx.textAlign = 'center';
-    ctx.fillText(label, cx, by + 12.5);
   });
 
   // X labels
@@ -360,7 +364,7 @@ function applyDefaultIncome() {
     showToast('설정에서 기본 수입을 먼저 등록해주세요');
     return;
   }
-  if (defaultIncome.amount) document.getElementById('amountInput').value = defaultIncome.amount;
+  if (defaultIncome.amount) document.getElementById('amountInput').value = Number(defaultIncome.amount).toLocaleString('ko-KR');
   if (defaultIncome.name)   document.getElementById('descInput').value   = defaultIncome.name;
   if (defaultIncome.day) {
     const lastDay = new Date(curYear, curMonth, 0).getDate();
@@ -431,7 +435,7 @@ function selectPay(el) {
 
 // ── 거래 추가 ──────────────────────────────────────────
 async function addTransaction() {
-  const amount = Number(document.getElementById('amountInput').value);
+  const amount = Number(document.getElementById('amountInput').value.replace(/,/g, ''));
   const name   = document.getElementById('descInput').value.trim();
   const date   = document.getElementById('dateInput').value;
   const memo   = document.getElementById('memoInput').value.trim();
@@ -449,6 +453,7 @@ async function addTransaction() {
     document.getElementById('descInput').value   = '';
     document.getElementById('memoInput').value   = '';
     showToast('거래를 추가했어요');
+    if (typeof closeAddPanel === 'function') closeAddPanel();
     await loadAll();
   } catch (e) {
     showToast(e.error || '추가에 실패했어요');
@@ -457,6 +462,10 @@ async function addTransaction() {
 
 // ── 유틸 ──────────────────────────────────────────────
 function fmt(n)  { return Number(n).toLocaleString('ko-KR') + '원'; }
+function formatAmountInput(el) {
+  const raw = el.value.replace(/[^0-9]/g, '');
+  el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+}
 function fmtY(n) {
   const a = Math.abs(n);
   if (a >= 100000000) return (n / 100000000).toFixed(1) + '억';

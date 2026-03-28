@@ -39,7 +39,7 @@ function applyDefaultIncome() {
     showToast('설정에서 기본 수입을 먼저 등록해주세요');
     return;
   }
-  if (defaultIncome.amount) document.getElementById('mAmount').value = defaultIncome.amount;
+  if (defaultIncome.amount) document.getElementById('mAmount').value = Number(defaultIncome.amount).toLocaleString('ko-KR');
   if (defaultIncome.name)   document.getElementById('mDesc').value   = defaultIncome.name;
   if (defaultIncome.day) {
     const lastDay = new Date(curYear, curMonth, 0).getDate();
@@ -137,7 +137,7 @@ function renderList(res) {
         <div class="tx-icon-cell" style="background:${t.category_color || '#f5f5f5'}">${t.category_icon || '•'}</div>
         <div class="tx-main">
           <div class="tx-name">${t.name}</div>
-          <div class="tx-memo">${t.memo || '—'}</div>
+          <div class="tx-memo">${t.memo || ''}</div>
         </div>
         <div><span class="tx-category-badge">${t.category_name || '미분류'}</span></div>
         <div class="tx-payment">${t.payment_name || '—'}</div>
@@ -240,7 +240,7 @@ async function openEditModal(id) {
   document.getElementById('submitBtn').textContent  = '수정하기';
   setModalType(t.type);
   document.getElementById('mDate').value   = t.date;
-  document.getElementById('mAmount').value = t.amount;
+  document.getElementById('mAmount').value = Number(t.amount).toLocaleString('ko-KR');
   document.getElementById('mDesc').value   = t.name;
   document.getElementById('mMemo').value   = t.memo || '';
 
@@ -252,8 +252,20 @@ async function openEditModal(id) {
   document.getElementById('modalOverlay').classList.add('open');
 }
 
-function closeModal() { document.getElementById('modalOverlay').classList.remove('open'); editingId = null; }
-function handleOverlayClick(e) { if (e.target === document.getElementById('modalOverlay')) closeModal(); }
+function closeModal() {
+  var overlay = document.getElementById('modalOverlay');
+  var modal = overlay.querySelector('.modal');
+  if (!overlay.classList.contains('open')) return;
+  modal.classList.add('closing');
+  setTimeout(function() {
+    overlay.classList.remove('open');
+    modal.classList.remove('closing');
+    editingId = null;
+  }, 240);
+}
+let _overlayMouseDownOnBg = false;
+function handleOverlayMouseDown(e) { _overlayMouseDownOnBg = e.target === document.getElementById('modalOverlay'); }
+function handleOverlayClick(e) { if (e.target === document.getElementById('modalOverlay') && _overlayMouseDownOnBg) closeModal(); }
 
 function setModalType(type) {
   modalType = type;
@@ -272,7 +284,7 @@ function setModalType(type) {
 }
 
 async function submitTransaction() {
-  const amount = Number(document.getElementById('mAmount').value);
+  const amount = Number(document.getElementById('mAmount').value.replace(/,/g, ''));
   const name   = document.getElementById('mDesc').value.trim();
   const date   = document.getElementById('mDate').value;
   const catId  = document.getElementById('mCat').value;
@@ -304,6 +316,10 @@ async function submitTransaction() {
 
 // ── 유틸 ──────────────────────────────────────────────
 function fmt(n) { return Number(n).toLocaleString('ko-KR') + '원'; }
+function formatAmountInput(el) {
+  const raw = el.value.replace(/[^0-9]/g, '');
+  el.value = raw ? Number(raw).toLocaleString('ko-KR') : '';
+}
 
 let toastTimer;
 function showToast(msg) {
