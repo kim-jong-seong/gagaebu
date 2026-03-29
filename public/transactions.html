@@ -108,7 +108,8 @@
       position: fixed;
       bottom: 0; left: 0;
       width: 100vw;
-      height: 60px;
+      height: 76px;
+      padding-bottom: 16px;
       background: var(--surface);
       border-top: 1px solid var(--border);
       z-index: 9999;
@@ -136,7 +137,7 @@
     /* ── 모바일 ──────────────────────────────────── */
     @media (max-width: 767px) {
       .sidebar { display: none; }
-      .main { margin-left: 0; padding: 20px 16px 76px; }
+      .main { margin-left: 0; padding: 20px 16px 92px; }
       .page-title { font-size: 18px; }
       .page-subtitle { font-size: 12px; }
 
@@ -169,14 +170,14 @@
 
       @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
-      .modal-overlay { align-items: flex-end; padding-bottom: 60px; }
+      .modal-overlay { align-items: flex-end; padding-bottom: 76px; }
       .modal { width: 100% !important; max-width: 100% !important; border-radius: 16px 16px 0 0; animation: slideUp .25s ease; }
       .modal.closing { animation: slideDown .25s ease; }
       .form-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
       .form-row .form-group { min-width: 0; overflow: hidden; }
       .modal .form-control { width: 100%; min-width: 0; box-sizing: border-box; }
 
-      .toast { bottom: 76px; }
+      .toast { bottom: 92px; }
 
       .bottom-tab-bar { display: flex; }
     }

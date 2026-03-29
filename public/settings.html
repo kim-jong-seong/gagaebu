@@ -99,7 +99,7 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
     /* ── 하단 탭바 ───────────────────────────────── */
-    .bottom-tab-bar { display: none; position: fixed; bottom: 0; left: 0; width: 100vw; height: 60px; background: var(--surface); border-top: 1px solid var(--border); z-index: 9999; flex-direction: row; }
+    .bottom-tab-bar { display: none; position: fixed; bottom: 0; left: 0; width: 100vw; height: 76px; padding-bottom: 16px; background: var(--surface); border-top: 1px solid var(--border); z-index: 9999; flex-direction: row; }
     .bottom-tab { flex: 1 1 0px; min-width: 0; max-width: 20%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: var(--text-muted); font-size: 10px; font-weight: 500; white-space: nowrap; transition: color .15s; }
     .bottom-tab.active { color: var(--accent); }
     .bottom-tab-icon { font-size: 20px; line-height: 1; }
@@ -110,14 +110,14 @@
     @media (max-width: 767px) {
       .bottom-tab-bar { display: flex; }
       .sidebar { display: none; }
-      .main { margin-left: 0; padding: 20px 16px 76px; max-width: 100%; }
+      .main { margin-left: 0; padding: 20px 16px 92px; max-width: 100%; }
       .page-title { font-size: 18px; }
       .settings-layout { grid-template-columns: 1fr; gap: 16px; }
       .settings-nav { position: static; display: flex; overflow-x: auto; padding: 6px; gap: 4px; }
       .snav-item { white-space: nowrap; flex-shrink: 0; }
-      .modal-overlay { align-items: flex-end; padding-bottom: 60px; }
+      .modal-overlay { align-items: flex-end; padding-bottom: 76px; }
       .modal { width: 100% !important; max-width: 100% !important; border-radius: 16px 16px 0 0; animation: slideUp .25s ease; }
-      .toast { bottom: 76px; }
+      .toast { bottom: 92px; }
     }
     .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 100; align-items: center; justify-content: center; }
     .modal-overlay.open { display: flex; }
