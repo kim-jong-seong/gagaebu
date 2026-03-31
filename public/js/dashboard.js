@@ -12,6 +12,9 @@ let selectedCatId = null;
 let selectedPayId = null;
 let _lastTrendData = null;
 let _lastWeekDaily = null;
+let txCache      = {}; // [변경] 최근 거래 캐시 (수정 모달용)
+let editingId    = null; // [변경] 수정 중인 거래 ID
+let editModalType = 'expense'; // [변경] 수정 모달 유형
 
 const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const DAY_NAMES   = ['일','월','화','수','목','금','토'];
@@ -321,6 +324,10 @@ function renderRecentTx(txList) {
     return;
   }
 
+  // [변경] 거래 데이터 캐시
+  txCache = {};
+  txList.forEach(t => { txCache[t.id] = t; });
+
   const groups = {};
   txList.forEach(t => { if (!groups[t.date]) groups[t.date] = []; groups[t.date].push(t); });
 
@@ -328,14 +335,14 @@ function renderRecentTx(txList) {
     const d   = new Date(date + 'T00:00:00');
     const label = `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}  ${DAY_NAMES[d.getDay()]}요일`;
     const rows = items.map(t => `
-      <div class="transaction-item">
+      <div class="transaction-item" onclick="openEditModal(${t.id})" style="cursor:pointer">
         <div class="tx-icon" style="background:${t.category_color || '#f5f5f5'}">${t.category_icon || '•'}</div>
         <div class="tx-info">
           <div class="tx-name">${t.name}</div>
           <div class="tx-category">${t.category_name || '미분류'}</div>
         </div>
         <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</div>
-      </div>`).join('');
+      </div>`).join(''); // [변경] onclick 추가
     return `<div class="transaction-date-group"><div class="date-header">${label}</div>${rows}</div>`;
   }).join('');
 }
@@ -480,6 +487,79 @@ function showToast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2200);
+}
+
+// [변경] ── 수정 모달 ──────────────────────────────────────
+function openEditModal(id) {
+  const t = txCache[id];
+  if (!t) return;
+
+  editingId = id;
+  setEditModalType(t.type);
+  document.getElementById('mDate').value   = t.date;
+  document.getElementById('mAmount').value = Number(t.amount).toLocaleString('ko-KR');
+  document.getElementById('mDesc').value   = t.name;
+  document.getElementById('mMemo').value   = t.memo || '';
+
+  const catEl = document.getElementById('mCat');
+  const payEl = document.getElementById('mPay');
+  if (t.category_id)       { for (const o of catEl.options) if (Number(o.value) === t.category_id)       { o.selected = true; break; } }
+  if (t.payment_method_id) { for (const o of payEl.options) if (Number(o.value) === t.payment_method_id) { o.selected = true; break; } }
+
+  document.getElementById('editModalOverlay').classList.add('open');
+}
+
+function closeEditModal() {
+  const overlay = document.getElementById('editModalOverlay');
+  const modal = overlay.querySelector('.modal');
+  if (!overlay.classList.contains('open')) return;
+  modal.classList.add('closing');
+  setTimeout(function() {
+    overlay.classList.remove('open');
+    modal.classList.remove('closing');
+    editingId = null;
+  }, 240);
+}
+
+let _editOverlayMouseDown = false;
+function handleEditOverlayMouseDown(e) { _editOverlayMouseDown = e.target === document.getElementById('editModalOverlay'); }
+function handleEditOverlayClick(e) { if (e.target === document.getElementById('editModalOverlay') && _editOverlayMouseDown) closeEditModal(); }
+
+function setEditModalType(type) {
+  editModalType = type;
+  document.getElementById('mBtnExpense').classList.toggle('active', type === 'expense');
+  document.getElementById('mBtnIncome').classList.toggle('active', type === 'income');
+
+  const cats = categories[type] || [];
+  document.getElementById('mCat').innerHTML = cats.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  document.getElementById('mPay').innerHTML = paymentMethods.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+  document.getElementById('mCatLabel').textContent = type === 'expense' ? '카테고리' : '수입 분류';
+  document.getElementById('mPayLabel').textContent = type === 'expense' ? '결제수단' : '입금수단';
+}
+
+async function submitEditTransaction() {
+  const amount = Number(document.getElementById('mAmount').value.replace(/,/g, ''));
+  const name   = document.getElementById('mDesc').value.trim();
+  const date   = document.getElementById('mDate').value;
+  const catId  = document.getElementById('mCat').value;
+  const payId  = document.getElementById('mPay').value;
+  const memo   = document.getElementById('mMemo').value.trim();
+
+  if (!amount || !name || !date) { showToast('금액, 내용, 날짜를 입력해주세요'); return; }
+
+  try {
+    await API.transactions.update(editingId, {
+      date, type: editModalType, name, amount,
+      category_id: catId || null,
+      payment_method_id: payId || null,
+      memo,
+    });
+    showToast('수정했어요');
+    closeEditModal();
+    await loadAll();
+  } catch (err) {
+    showToast(err.error || '수정에 실패했어요');
+  }
 }
 
 let _resizeTimer;

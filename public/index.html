@@ -108,6 +108,30 @@
     @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
     @keyframes slideDown { from { transform: translateY(0); } to { transform: translateY(100%); } }
 
+    /* ── 수정 모달 ───────────────────────────────── */
+    .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 100; align-items: center; justify-content: center; }
+    .modal-overlay.open { display: flex; }
+    .modal { background: var(--surface); border-radius: var(--radius); padding: 28px; width: 400px; max-width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,.12); animation: mIn .18s ease; }
+    @keyframes mIn { from { opacity:0; transform: scale(.96) translateY(8px); } to { opacity:1; transform: none; } }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+    .modal-title { font-size: 16px; font-weight: 700; }
+    .modal-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-muted); line-height: 1; }
+    .modal .type-toggle { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 18px; }
+    .type-btn-m { padding: 10px; border: none; background: none; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-muted); transition: all .15s; font-family: inherit; }
+    .type-btn-m.expense.active { background: var(--expense-bg); color: var(--expense); }
+    .type-btn-m.income.active { background: var(--income-bg); color: var(--income); }
+    .modal .form-group { margin-bottom: 14px; }
+    .modal .form-label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
+    .modal .form-control { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; color: var(--text); background: var(--bg); outline: none; font-family: inherit; transition: border-color .15s; }
+    .modal .form-control:focus { border-color: var(--accent); background: #fff; }
+    .modal input[type="date"].form-control { -webkit-appearance: none; appearance: none; min-height: 42px; line-height: normal; color: var(--text); }
+    .amount-wrap { position: relative; }
+    .amount-wrap .amount-prefix { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 13px; }
+    .amount-wrap .form-control { padding-left: 28px; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .modal .submit-btn { width: 100%; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; transition: opacity .15s; margin-top: 4px; }
+    .modal .submit-btn:hover { opacity: .88; }
+
     /* ── 하단 탭바 ───────────────────────────────── */
     .bottom-tab-bar { display: none; position: fixed; bottom: 0; left: 0; width: 100vw; height: 76px; padding-bottom: 16px; background: var(--surface); border-top: 1px solid var(--border); z-index: 9999; flex-direction: row; }
     .bottom-tab { flex: 1 1 0px; min-width: 0; max-width: 20%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; text-decoration: none; color: var(--text-muted); font-size: 10px; font-weight: 500; white-space: nowrap; transition: color .15s; }
@@ -137,6 +161,12 @@
       .add-panel.closing { animation: slideDown .25s ease; }
       .add-panel-close { display: block; }
       .toast { bottom: 92px; }
+      .modal-overlay { align-items: flex-end; padding-bottom: 76px; }
+      .modal { width: 100% !important; max-width: 100% !important; border-radius: 16px 16px 0 0; animation: slideUp .25s ease; }
+      .modal.closing { animation: slideDown .25s ease; }
+      .form-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .form-row .form-group { min-width: 0; overflow: hidden; }
+      .modal .form-control { width: 100%; min-width: 0; box-sizing: border-box; }
     }
   </style>
 </head>
@@ -276,6 +306,48 @@
       </div>
     </div>
   </main>
+</div>
+<!-- 수정 모달 -->
+<div class="modal-overlay" id="editModalOverlay" onmousedown="handleEditOverlayMouseDown(event)" onclick="handleEditOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">거래 수정</div>
+      <button class="modal-close" onclick="closeEditModal()">&#215;</button>
+    </div>
+    <div class="type-toggle">
+      <button class="type-btn-m expense active" id="mBtnExpense" onclick="setEditModalType('expense')">지출</button>
+      <button class="type-btn-m income"         id="mBtnIncome"  onclick="setEditModalType('income')">수입</button>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">금액</label>
+        <div class="amount-wrap"><span class="amount-prefix">&#8361;</span><input class="form-control" type="text" inputmode="numeric" placeholder="0" id="mAmount" oninput="formatAmountInput(this)" style="text-align:right" /></div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">날짜</label>
+        <input class="form-control" type="date" id="mDate" style="text-align:center" />
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">내용</label>
+      <input class="form-control" type="text" placeholder="거래 내용" id="mDesc" />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label" id="mCatLabel">카테고리</label>
+        <select class="form-control" id="mCat" style="text-align:center; padding-left:28px; padding-right:28px; appearance:none; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239a9a95'/%3E%3C/svg%3E&quot;); background-repeat:no-repeat; background-position:right 10px center"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" id="mPayLabel">결제수단</label>
+        <select class="form-control" id="mPay" style="text-align:center; padding-left:28px; padding-right:28px; appearance:none; background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239a9a95'/%3E%3C/svg%3E&quot;); background-repeat:no-repeat; background-position:right 10px center"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">메모 (선택)</label>
+      <input class="form-control" type="text" placeholder="간단한 메모" id="mMemo" />
+    </div>
+    <button class="submit-btn" onclick="submitEditTransaction()">수정하기</button>
+  </div>
 </div>
 <div class="toast" id="toast"></div>
 
