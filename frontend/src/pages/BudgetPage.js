@@ -102,7 +102,7 @@ export default function BudgetPage({ isActive }) {
           spent: s.expense || 0,
         }));
         setCarryoverMonths(months);
-        const total = months.reduce((t, m) => t + Math.max(m.income - m.spent, 0), 0);
+        const total = months.reduce((t, m) => t + (m.income - m.spent), 0);
         setCarryover(total);
       } else {
         setCarryover(0);
@@ -376,52 +376,41 @@ export default function BudgetPage({ isActive }) {
           background: COLORS.carryoverBg, border: '1px solid rgba(123,63,228,.2)',
           borderRadius: RADIUS, padding: '18px 22px', marginBottom: 16,
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.carryover, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {'\u21A9'} 이월 내역
+          <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.carryover, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+            {'\u21A9'} 이월 내역
+          </div>
+          {activeCarryoverMonths.length === 0 ? (
+            <div style={{ color: COLORS.textMuted, fontSize: 13 }}>이월 대상 기간에 거래 내역이 없습니다</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {activeCarryoverMonths.map((m) => {
+                const remain = m.income - m.spent;
+                return (
+                  <div key={m.year + '-' + m.month}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.carryover, marginBottom: 6 }}>
+                      {m.year}년 {MONTH_NAMES[m.month - 1]}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLORS.textMuted, marginBottom: 3 }}>
+                      <span>수입</span>
+                      <span>{fmt(m.income)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLORS.textMuted, marginBottom: 3 }}>
+                      <span>지출</span>
+                      <span>{fmt(m.spent)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: remain < 0 ? COLORS.expense : COLORS.carryover }}>
+                      <span></span>
+                      <span>{remain >= 0 ? '+' : '-'}{fmt(Math.abs(remain))}</span>
+                    </div>
+                  </div>
+                );
+              })}
+              <div style={{ borderTop: '1px solid rgba(123,63,228,.2)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: COLORS.carryover }}>
+                <span>총 이월</span>
+                <span>{fmt(totalCarry)}</span>
+              </div>
             </div>
-            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.carryover }}>총 이월 {fmt(totalCarry)}</div>
-          </div>
-          <div style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
-            {activeCarryoverMonths.map((m, i) => {
-              const remain = m.income - m.spent;
-              const barPct = m.income > 0 ? Math.min(Math.round((m.spent / m.income) * 100), 100) : 0;
-              const isLast = i === activeCarryoverMonths.length - 1;
-              return (
-                <div key={m.year + '-' + m.month} style={{
-                  flex: 1, padding: '10px 14px',
-                  borderRight: isLast ? 'none' : '1px solid rgba(123,63,228,.15)',
-                  position: 'relative',
-                  background: isLast ? 'rgba(123,63,228,.06)' : 'transparent',
-                  borderRadius: isLast ? 8 : 0,
-                }}>
-                  {!isLast && (
-                    <div style={{
-                      position: 'absolute', right: -10, top: '50%', transform: 'translateY(-50%)',
-                      fontSize: 14, color: COLORS.carryover, opacity: 0.5, zIndex: 1,
-                    }}>{'\u203A'}</div>
-                  )}
-                  <div style={{ fontSize: 11, color: COLORS.carryover, fontWeight: 600, marginBottom: 4, opacity: 0.7 }}>
-                    {m.year}년 {MONTH_NAMES[m.month - 1]}
-                  </div>
-                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 2 }}>수입 {fmt(m.income)}</div>
-                  <div style={{ fontSize: 11, color: COLORS.textMuted, marginBottom: 6 }}>지출 {fmt(m.spent)}</div>
-                  <div style={{
-                    fontSize: 14, fontWeight: 700,
-                    color: remain < 0 ? COLORS.expense : COLORS.carryover,
-                  }}>
-                    {remain >= 0 ? '+' : '-'}{fmt(Math.abs(remain))}
-                  </div>
-                  <div style={{ height: 4, background: 'rgba(123,63,228,.15)', borderRadius: 99, overflow: 'hidden', marginTop: 6 }}>
-                    <div style={{ height: '100%', background: COLORS.carryover, borderRadius: 99, width: barPct + '%' }} />
-                  </div>
-                </div>
-              );
-            })}
-            {activeCarryoverMonths.length === 0 && (
-              <div style={{ color: COLORS.textMuted, fontSize: 13 }}>이월 대상 기간에 거래 내역이 없습니다</div>
-            )}
-          </div>
+          )}
         </div>
       )}
 
