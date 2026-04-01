@@ -1093,7 +1093,7 @@ export default function DashboardPage({ isActive }) {
             }}
           >
             {isMobile && (
-              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 12, paddingBottom: 4, flexShrink: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: -16, paddingBottom: 8, flexShrink: 0 }}>
                 <div style={{ width: 36, height: 4, backgroundColor: BORDER, borderRadius: 2 }} />
               </div>
             )}
