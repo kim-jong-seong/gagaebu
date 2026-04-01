@@ -339,7 +339,7 @@ function renderRecentTx(txList) {
         <div class="tx-icon" style="background:${t.category_color || '#f5f5f5'}">${t.category_icon || '•'}</div>
         <div class="tx-info">
           <div class="tx-name">${t.name}</div>
-          <div class="tx-category">${t.category_name || '미분류'}</div>
+          <div class="tx-category">${t.memo || ''}</div>
         </div>
         <div class="tx-amount ${t.type}">${t.type === 'income' ? '+' : '-'}${fmt(t.amount)}</div>
       </div>`).join(''); // [변경] onclick 추가

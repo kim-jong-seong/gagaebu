@@ -12,7 +12,7 @@ let allPays     = [];
 let txCache     = {};
 let defaultIncome = {};
 
-const PAGE_SIZE  = 10;
+const PAGE_SIZE  = 9999;
 const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const DAY_NAMES   = ['일','월','화','수','목','금','토'];
 
@@ -98,7 +98,6 @@ async function loadList() {
   res.data.forEach(t => { txCache[t.id] = t; });
   renderSummary(summary);
   renderList(res);
-  renderPagination(res.total, res.page, res.limit);
   updateHeaderSub(res.total);
 }
 
@@ -156,21 +155,6 @@ function renderList(res) {
   }).join('');
 }
 
-function renderPagination(total, page, limit) {
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const start = (page - 1) * limit + 1;
-  const end   = Math.min(page * limit, total);
-
-  document.getElementById('pageInfo').textContent =
-    total === 0 ? '0건' : `${start}–${end} / ${total}건`;
-
-  let html = `<button class="page-btn" onclick="goPage(-1)" ${page <= 1 ? 'disabled' : ''}>&#8249;</button>`;
-  for (let p = 1; p <= totalPages; p++) {
-    html += `<button class="page-btn${p === page ? ' active' : ''}" onclick="goToPage(${p})">${p}</button>`;
-  }
-  html += `<button class="page-btn" onclick="goPage(1)" ${page >= totalPages ? 'disabled' : ''}>&#8250;</button>`;
-  document.getElementById('pageBtns').innerHTML = html;
-}
 
 function updateHeaderSub(total) {
   document.getElementById('headerSub').textContent =
@@ -204,8 +188,6 @@ function onSearch() {
   searchTimer = setTimeout(() => { curPage = 1; loadList(); }, 300);
 }
 
-function goPage(d)    { curPage += d; loadList(); }
-function goToPage(p)  { curPage = p;  loadList(); }
 
 // ── 삭제 ──────────────────────────────────────────────
 async function deleteTx(e, id) {
