@@ -211,7 +211,6 @@ export default function SettingsPage({ isActive, onLogout }) {
   const [startDay, setStartDay] = useState('1');
   const [abbreviation, setAbbreviation] = useState(false);
   const [carryoverEnabled, setCarryoverEnabled] = useState(false);
-  const [carryoverMaxMonths, setCarryoverMaxMonths] = useState('1');
   const [defaultBudget, setDefaultBudget] = useState('');
   const [defaultIncomeAmount, setDefaultIncomeAmount] = useState('');
   const [defaultIncomeName, setDefaultIncomeName] = useState('');
@@ -257,7 +256,6 @@ export default function SettingsPage({ isActive, onLogout }) {
       setStartDay(s.start_day || '1');
       setAbbreviation(s.abbreviation === 'true');
       setCarryoverEnabled(s.carryover_enabled === 'true');
-      setCarryoverMaxMonths(s.carryover_max_months || '1');
       setDefaultBudget(s.default_budget || '');
       setDefaultIncomeAmount(s.default_income_amount || '');
       setDefaultIncomeName(s.default_income_name || '');
@@ -623,22 +621,6 @@ export default function SettingsPage({ isActive, onLogout }) {
               saveSetting('carryover_enabled', next ? 'true' : 'false');
             }}
           />
-        </div>
-        <div style={settingRowStyle}>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={settingLabelStyle}>이월 최대 기간</div>
-            <div style={settingDescStyle}>최대 몇 달치까지 누적 이월할지</div>
-          </div>
-          <select
-            value={carryoverMaxMonths}
-            onChange={(e) => { setCarryoverMaxMonths(e.target.value); saveSetting('carryover_max_months', e.target.value); }}
-            style={settingSelectStyle}
-          >
-            <option value="1">1개월</option>
-            <option value="2">2개월</option>
-            <option value="3">3개월</option>
-            <option value="0">제한 없음</option>
-          </select>
         </div>
         <div style={settingRowLastStyle}>
           <div style={{ flex: 1, minWidth: 0 }}>

@@ -56,7 +56,6 @@ function seedDefaults() {
     ['abbreviation',          'true'],
     ['start_screen',          'dashboard'],
     ['carryover_enabled',     'true'],
-    ['carryover_max_months',  '3'],
     ['default_budget',        '2500000'],
     ['profile_name',          '사용자'],
     ['avatar_src',            ''],

@@ -84,7 +84,7 @@ export default function BudgetPage({ isActive }) {
       // carryover calculation
       if (coEnabled) {
         const raw = Number(settingsData.carryover_max_months);
-        const maxMonths = raw > 0 ? raw : 12;
+        const maxMonths = (isNaN(raw) || raw === 0) ? 12 : raw;
         const fetches = [];
         for (let i = maxMonths; i >= 1; i--) {
           let m = curMonth - i;
@@ -176,8 +176,7 @@ export default function BudgetPage({ isActive }) {
   const maxDayExpense = dailyData.length > 0 ? Math.max(...dailyData.map((d) => d.expense || 0), 1) : 1;
 
   /* ── carryover card ────────────────────────────────── */
-  const activeCarryoverMonths = carryoverMonths.filter((m) => m.income > 0 || m.spent > 0);
-  const totalCarry = carryoverMonths.reduce((s, m) => s + Math.max(m.income - m.spent, 0), 0);
+  const prevCarryoverMonth = carryoverMonths.length > 0 ? carryoverMonths[carryoverMonths.length - 1] : null;
 
   /* ── category breakdown ────────────────────────────── */
   const catTotal = catData.reduce((s, c) => s + (c.total || 0), 0);
@@ -379,35 +378,24 @@ export default function BudgetPage({ isActive }) {
           <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.carryover, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
             {'\u21A9'} 이월 내역
           </div>
-          {activeCarryoverMonths.length === 0 ? (
+          {!prevCarryoverMonth || (prevCarryoverMonth.income === 0 && prevCarryoverMonth.spent === 0) ? (
             <div style={{ color: COLORS.textMuted, fontSize: 13 }}>이월 대상 기간에 거래 내역이 없습니다</div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {activeCarryoverMonths.map((m) => {
-                const remain = m.income - m.spent;
-                return (
-                  <div key={m.year + '-' + m.month}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.carryover, marginBottom: 6 }}>
-                      {m.year}년 {MONTH_NAMES[m.month - 1]}
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLORS.textMuted, marginBottom: 3 }}>
-                      <span>수입</span>
-                      <span>{fmt(m.income)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLORS.textMuted, marginBottom: 3 }}>
-                      <span>지출</span>
-                      <span>{fmt(m.spent)}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: remain < 0 ? COLORS.expense : COLORS.carryover }}>
-                      <span></span>
-                      <span>{remain >= 0 ? '+' : '-'}{fmt(Math.abs(remain))}</span>
-                    </div>
-                  </div>
-                );
-              })}
-              <div style={{ borderTop: '1px solid rgba(123,63,228,.2)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: COLORS.carryover }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.carryover, marginBottom: 4 }}>
+                {prevCarryoverMonth.year}년 {MONTH_NAMES[prevCarryoverMonth.month - 1]} (전월)
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLORS.textMuted }}>
+                <span>수입</span>
+                <span>{fmt(prevCarryoverMonth.income)}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: COLORS.textMuted }}>
+                <span>지출</span>
+                <span>{fmt(prevCarryoverMonth.spent)}</span>
+              </div>
+              <div style={{ borderTop: '1px solid rgba(123,63,228,.2)', paddingTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: 14, fontWeight: 700, color: carryover < 0 ? COLORS.expense : COLORS.carryover }}>
                 <span>총 이월</span>
-                <span>{fmt(totalCarry)}</span>
+                <span>{carryover >= 0 ? '+' : '-'}{fmt(Math.abs(carryover))}</span>
               </div>
             </div>
           )}
